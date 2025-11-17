@@ -86,10 +86,20 @@ async function addItem() {
     added_by: userName.value || "Anônimo",
   };
 
-  const { error } = await supabase.from("items").insert(item).select().single();
+  const { data, error } = await supabase
+    .from("items")
+    .insert(item)
+    .select()
+    .single();
+
   if (error) {
     console.error("Erro ao inserir:", error);
     return;
+  }
+
+  // Atualiza a lista local imediatamente
+  if (data) {
+    items.value = [data as Item, ...(items.value || [])];
   }
 
   name.value = "";
@@ -98,12 +108,22 @@ async function addItem() {
 }
 
 async function togglePurchased(item: Item) {
+  const newValue = !item.purchased;
+
   const { error } = await supabase
     .from("items")
-    .update({ purchased: !item.purchased })
+    .update({ purchased: newValue })
     .eq("id", item.id);
 
-  if (error) console.error("Erro ao atualizar:", error);
+  if (error) {
+    console.error("Erro ao atualizar:", error);
+    return;
+  }
+
+  // Atualiza a lista local imediatamente
+  items.value = (items.value || []).map((i) =>
+    i.id === item.id ? { ...i, purchased: newValue } : i
+  );
 }
 
 async function removeItem(item: Item) {
@@ -126,7 +146,15 @@ async function editItem(item: Item, updates: Partial<Item>) {
     .update(updates)
     .eq("id", item.id);
 
-  if (error) console.error("Erro ao editar:", error);
+  if (error) {
+    console.error("Erro ao editar:", error);
+    return;
+  }
+
+  // Atualiza a lista local imediatamente
+  items.value = (items.value || []).map((i) =>
+    i.id === item.id ? { ...i, ...updates } : i
+  );
 }
 
 function openEditItem(item: Item) {
